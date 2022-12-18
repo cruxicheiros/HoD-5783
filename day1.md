@@ -33,10 +33,12 @@ glimpse(customers)
 
 The columns of note for me are `name` and `phone`. Names and phone
 numbers are types of data that programmers infamously believe
-[falsehoods]() [about](), so I’m being a bit more thorough than I could
-be. So, first I want to check whether I can expect all of the phone
-numbers to be 10 numbers long (12, with formatting dashes). It looks
-like I can from taking a quick visual look, but I want to check:
+[falsehoods](https://www.kalzumeus.com/2010/06/17/falsehoods-programmers-believe-about-names/)
+[about](https://github.com/google/libphonenumber/blob/master/FALSEHOODS.md),
+so I’m being a bit more thorough than I could be. So, first I want to
+check whether I can expect all of the phone numbers to be 10 numbers
+long (12, with formatting dashes). It looks like I can from taking a
+quick visual look, but I want to check:
 
 ``` r
 library(stringr)

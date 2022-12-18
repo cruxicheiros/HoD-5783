@@ -1,0 +1,87 @@
+---
+title: "Hanukkah of Data - Day 1"
+author: "Clark Seanor"
+format: gfm
+  #html:
+  #  df-print: paged
+  #  code-fold: true
+---
+
+## The question
+
+The objective of today's challenge is to find a person in a CSV containing names and phone numbers whose surname is the same as their phone number when spelled using a letters-to-numbers phone keypad.
+
+
+## My approach
+
+### Opening up the data 
+First, I want to have a quick look at the data.
+
+```{r}
+#| warning: false
+
+library(readr)
+library(dplyr)
+
+customers = read_csv("data/noahs-customers.csv")
+glimpse(customers)
+```
+
+The columns of note for me are `name` and `phone`. Names and phone numbers are types of data that programmers infamously believe [falsehoods]() [about](), so I'm being a bit more thorough than I could be. So, first I want to check whether I can expect all of the phone numbers to be 10 numbers long (12, with formatting dashes). It looks like I can from taking a quick visual look, but I want to check:
+
+```{r}
+#| warning: false
+library(stringr)
+max(str_length(customers$phone))
+```
+
+Fortunately it looks like I can rely on that. So, considering all phone numbers are only 10 numbers long, I can exclude any entry where someone has a surname that is longer or shorter than 10 characters. However, a person's surname is not always the last word in their name: sometimes their name ends in a suffix, like 'Jr.' or 'III'.
+
+```{r}
+non_surnames <- c('Jr.', 'Sr.', 'I', 'II', "III", 'IV', 'V', 'VI', 'VII', 'VIII')
+
+find_surname_str <- function(n) {
+  split_name <- str_split(n, " ")
+  likely_surname <- sapply(split_name, tail, 1)
+  alternative_surname <- sapply(split_name, function(n) {head(tail(n, 2), 1)})
+  non_surname <- likely_surname %in% non_surnames
+  
+  return(if(non_surname) alternative_surname else likely_surname)
+}
+
+find_surname <- function(full_name) {
+  return(sapply(full_name, find_surname_str))
+}
+
+customers <- customers %>%
+ select(name, phone) %>%
+ mutate(
+  surname = find_surname(name),
+  surname_length = str_length(surname),
+  phone = str_replace_all(phone, "-", "")
+ )
+
+possible_investigators <- customers[customers$surname_length == 10,]
+
+pi_surnames <- unique(possible_investigators$surname)
+``` 
+
+Turns out there are only a few surnames that fit the bill. So let's generate some phone numbers:
+
+```{r}
+library(mgsub)
+name_to_number = function(surnames) {
+  return(mgsub(toupper(surnames), c('[ABC]', '[DEF]', '[GHI]', '[JKL]', '[MNO]', '[PQRS]', '[TUV]', '[WXYZ]'), c(2, 3, 4, 5, 6, 7, 8, 9)))
+}
+
+pi_numbers = name_to_number(pi_surnames) 
+pi_numbers
+```
+
+Now to find the person who has one of those numbers...
+
+```{r}
+possible_investigators[possible_investigators$phone %in% pi_numbers,]
+```
+
+Complete :)

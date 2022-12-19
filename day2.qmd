@@ -1,0 +1,93 @@
+---
+title: "Hanukkah of Data - Day 2"
+author: "Clark Seanor"
+format: gfm
+  # html:
+    # df-print: paged
+    # code-fold: true
+---
+
+## The question
+
+The objective of today's challenge is to find a person's phone number whose first name starts with J and whose surname starts with D, and who did a job in 2017. The name will be in the customer database, because the contractors were all also customers. The date of the job can be found from the orders database, because the order would have occurred at the same time as the job.
+
+
+## My approach
+
+### Opening up the data 
+First, I want to have a quick look at the customers table.
+
+```{r}
+#| warning: false
+
+library(readr)
+library(dplyr)
+
+customers = read_csv("data/noahs-customers.csv")
+glimpse(customers)
+```
+
+Fortunately I wrote some code for processing this table in Day 1. Now for the orders table:
+
+```{r}
+#| warning: false
+orders = read_csv("data/noahs-orders.csv")
+glimpse(orders)
+```
+
+In this table I'm interested in retrieving `customerid` for orders made with an `ordered` date in 2017.
+
+To start, I'll join the tables and extract the customer surnames from the names.
+
+```{r}
+library(stringr)
+
+non_surnames <- c('Jr.', 'Sr.', 'I', 'II', "III", 'IV', 'V', 'VI', 'VII', 'VIII')
+
+find_surname_str <- function(n) {
+  split_name <- str_split(n, " ")
+  likely_surname <- sapply(split_name, tail, 1)
+  alternative_surname <- sapply(split_name, function(n) {head(tail(n, 2), 1)})
+  non_surname <- likely_surname %in% non_surnames
+  
+  return(if(non_surname) alternative_surname else likely_surname)
+}
+
+find_surname <- function(full_name) {
+  return(sapply(full_name, find_surname_str))
+}
+
+customers <- customers %>%
+ select(name, phone, customerid) %>%
+ mutate(
+  surname = find_surname(name),
+ )
+
+customers <- customers[grep("^J", customers$name), 1:ncol(customers)]
+customers <- customers[grep("^D", customers$surname), 1:ncol(customers)]
+orders <- orders[format(orders$ordered, "%Y") == 2017, 1:ncol(orders)]
+
+possible_contractors = merge(x=customers, y=orders, by="customerid")
+glimpse(possible_contractors)
+```
+
+Unfortunately, there are too many possible contractors to just go through and guess. Fortunately, the order table contains the `orderid`, the order-products table contains the SKU of the ordered products, and the products table contains the `desc` of each product. We know that they would order coffee, bagels, and cleaning supplies.
+
+```{r}
+products = read_csv("data/noahs-products.csv")
+products <- products[grep("coffee|bagel", products$desc, ignore.case=TRUE), 1:ncol(products)]
+
+order_products = read_csv("data/noahs-orders_items.csv")
+
+possible_orders = merge(x=products, y=order_products, by="sku")
+
+merge(x=possible_contractors, y=possible_orders, by="orderid")
+
+```
+
+Contextually, the answer can only be Jeremy Davis, because none of the other names ordered coffee and bagels more than once.
+
+
+
+
+

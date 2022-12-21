@@ -1,0 +1,74 @@
+---
+title: "Hanukkah of Data - Day 3"
+author: "Clark Seanor"
+format: gfm
+  # html:
+    # df-print: paged
+    # code-fold: true
+---
+
+## The question
+
+The objective of today's challenge is to find a person's phone number who was born in the year of the dog and is an Aries.
+
+
+## My approach
+
+### Opening up the data 
+First, I want to have a quick look at the customers table.
+
+```{r}
+#| warning: false
+
+library(readr)
+library(dplyr)
+
+customers = read_csv("data/noahs-customers.csv")
+glimpse(customers)
+```
+
+I'm not totally sure why the birthdate is stored here, but whatever?
+
+Anyway, because the date comparison library I wanted to use doesn't seem to work properly on my computer because it can't talk to the time management system or whatever ***(I blame Crouton)*** I'm just going to split out the date parts I want to be able to use. Aries are born between March 21 and April 20, according to Google. The year of the dog occurs every 12 years, when `year % 12 = 2`. So I need to be able to use all these date parts, and I need to be able to use them as ints.
+
+```{r}
+customers <- customers %>%
+ select(name, phone, birthdate, customerid) %>%
+ mutate(
+  year = as.integer(format(customers$birthdate, "%Y")),
+  month = as.integer(format(customers$birthdate, "%m")),
+  day = as.integer(format(customers$birthdate, "%d")),
+ )
+
+customers <- customers[customers$year %% 12 == 2,]
+
+customers <- customers[(customers$month == 3 & customers$day > 20) | (customers$month == 4 & customers$day < 21),]
+
+glimpse(customers)
+
+```
+
+So it turns out that there are a lot of Aries born in the year of the dog. Okay. So we also know that the person probably visited Noah's in 2017.
+
+```{r}
+#| warning: false
+orders = read_csv("data/noahs-orders.csv")
+orders <- orders[format(orders$ordered, "%Y") == 2017,]
+customers <- merge(x=customers, y=orders, by="customerid")
+
+unique(customers$name)
+```
+
+Well. There are still far too many of them. So maybe one of them bought rug cleaner (SKU HOM8601)?
+
+
+```{r}
+#| warning: false
+orders_items = read_csv("data/noahs-orders_items.csv")
+orders_items <- orders_items[orders_items$sku == "HOM8601",]
+customers <- merge(x=customers, y=orders_items, by="orderid")
+
+customers
+```
+
+Well... since it's a guy it's probably either going to be Carlos or Brent. Since Brent bought the most rug cleaner and the rug was really dirty, I decided to enter Brent's phone number first. It was Brent :)
